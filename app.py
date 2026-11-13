@@ -46,7 +46,7 @@ st.markdown(
 )
 
 
-# ৩. গুগল শিট কানেকশন ফাংশন
+# ৩. গুগল শিট কানেকশন ফাংশন (কলাম স্পেস ক্লিনিং সহ)
 @st.cache_resource
 def load_data():
   scope = [
@@ -57,22 +57,24 @@ def load_data():
   creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
   client = gspread.authorize(creds)
 
-# ৩. গুগল শিট কানেকশন ফাংশন
-@st.cache_resource
-def load_data():
-  scope = [
-      "https://spreadsheets.google.com/feeds",
-      "https://www.googleapis.com/auth/drive",
-  ]
-  creds_dict = dict(st.secrets["gcp_service_account"])
-  creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-  client = gspread.authorize(creds)
-
-  # আপনার গুগল শিটের নাম এখানে থাকবে
+  # আপনার গুগল শিটের নাম
   sheet = client.open("library_data").sheet1
   data = sheet.get_all_records()
   df = pd.DataFrame(data)
-    
+
+  # কলাম নামের চারপাশের লুকানো স্পেস দূর করা
+  df.columns = df.columns.str.strip()
+  return df
+
+
+try:
+  catalog = load_data()
+except Exception as e:
+  st.error(
+      f"Database connection error! Please check your Secrets configuration."
+      f" Details: {e}"
+  )
+  catalog = pd.DataFrame()
 
 # ৪. সাইডবার মেনু
 st.sidebar.title("Navigation")
@@ -85,12 +87,11 @@ if menu == "🔍 বই অনুসন্ধান":
   st.subheader("📚 Library Book and Shelf Location Search")
 
   if not catalog.empty:
-    # ড্যাশবোর্ড স্ট্যাটাস কার্ড (KPI Metrics)
+    # ড্যাশবোর্ড স্ট্যাটাস কার্ড (KPI Metrics) - নিরাপদ হিসাবসহ
     col1, col2, col3 = st.columns(3)
     with col1:
       st.metric(label="📚 Total Book Titles", value=len(catalog))
     with col2:
-      # নিরাপদভাবে সংখ্যা হিসাব করার জন্য pd.to_numeric ব্যবহার করা হলো
       if "Available_Copies" in catalog.columns:
         total_copies = int(
             pd.to_numeric(catalog["Available_Copies"], errors="coerce")
@@ -105,10 +106,10 @@ if menu == "🔍 বই অনুসন্ধান":
           catalog["Subject"].nunique() if "Subject" in catalog.columns else "N/A"
       )
       st.metric(label="🗂️ Total Subjects", value=total_subjects)
-        
+
     st.markdown("---")
 
-    # প্রতিটি বইয়ের জন্য সার্চযোগ্য অপشن তৈরি
+    # প্রতিটি বইয়ের জন্য সার্চযোগ্য অপশন তৈরি
     search_options = [
         f"{row['Title']} | Author: {row['Author']} | Subject: {row['Subject']} (Shelf: {row['Shelf_No']})"
         for _, row in catalog.iterrows()
@@ -153,7 +154,6 @@ elif menu == "🔒 Admin Portal (Faculty/Staff)":
   st.subheader("🔐 Administrator Login")
   admin_pass = st.text_input("Enter Admin Password", type="password")
 
-  # আপনার পছন্দমতো পাসওয়ার্ড এখানে দিতে পারেন (যেমন: admin123)
   if admin_pass == "admin123":
     st.success("✅ Logged in successfully as Administrator!")
     st.markdown("### ⚙️ Library Management Dashboard")
@@ -162,7 +162,6 @@ elif menu == "🔒 Admin Portal (Faculty/Staff)":
         " Google Sheets."
     )
 
-    # অ্যাডমিন প্যানেলে ফুল ডাটা টেবিল এডিটিংয়ের সুবিধা
     if not catalog.empty:
       st.dataframe(catalog, use_container_width=True)
     else:
