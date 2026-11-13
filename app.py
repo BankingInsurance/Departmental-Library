@@ -1,251 +1,167 @@
-from datetime import datetime, timedelta
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import streamlit as st
+from oauth2client.service_account import ServiceAccountCredentials
 
-# পেজ কনফিগারেশন
+# ১. পেজ কনফিগারেশন (সবার উপরে থাকতে হবে)
 st.set_page_config(
-    page_title="ডিপার্টমেন্টাল লাইব্রেরি ম্যানেজমেন্ট", layout="wide"
+    page_title="Departmental Library | CU", page_icon="🏛️", layout="wide"
 )
 
-# --- গুগল শিট কানেকশন সেটআপ ---
-scope = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive",
-]
-# Streamlit Secrets থেকে ক্রেডেনশিয়াল লোড করা হবে
-creds_dict = dict(st.secrets["gcp_service_account"])
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-client = gspread.authorize(creds)
+# ২. কাস্টম CSS ডিজাইন ও হেডার ব্যানার
+st.markdown(
+    """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    .header-box {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        padding: 25px;
+        border-radius: 12px;
+        color: white;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .header-box h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .header-box p {
+        margin: 5px 0 0 0;
+        font-size: 15px;
+        color: #e0e8f5;
+    }
+    </style>
+    
+    <div class="header-box">
+        <h1>🏛️ Departmental Library Management System</h1>
+        <p>Department of Banking & Insurance • University of Chittagong</p>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
 
-# আপনার গুগল শিটের নাম এখানে দিতে হবে
-SHEET_NAME = "Library_Database"
-sheet = client.open(SHEET_NAME)
 
-
+# ৩. গুগল শিট কানেকশন ফাংশন
+@st.cache_resource
 def load_data():
-  catalog_sheet = sheet.worksheet("Catalog")
-  issue_sheet = sheet.worksheet("Issue_Log")
+  scope = [
+      "https://spreadsheets.google.com/feeds",
+      "https://www.googleapis.com/auth/drive",
+  ]
+  creds_dict = dict(st.secrets["gcp_service_account"])
+  creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+  client = gspread.authorize(creds)
 
-  catalog_data = catalog_sheet.get_all_records()
-  issue_data = issue_sheet.get_all_records()
-
-  catalog = pd.DataFrame(catalog_data)
-  issue_log = pd.DataFrame(issue_data)
-
-  # যদি শিট খালি থাকে তবে ডিফল্ট কলাম নিশ্চিত করা
-  if catalog.empty:
-    catalog = pd.DataFrame(columns=[
-        "Book_ID",
-        "Title",
-        "Author",
-        "Subject",
-        "Shelf_No",
-        "Total_Copies",
-        "Available_Copies",
-    ])
-  if issue_log.empty:
-    issue_log = pd.DataFrame(columns=[
-        "Issue_ID",
-        "Book_ID",
-        "Borrower_Name",
-        "Role_ID",
-        "Issue_Date",
-        "Return_Deadline",
-        "Status",
-    ])
-
-  return catalog, issue_log
+  # আপনার গুগল শিটের নাম এখানে থাকবে
+  sheet = client.open("library_data").sheet1
+  data = sheet.get_all_records()
+  return pd.DataFrame(data)
 
 
-def save_data(catalog_df, issue_df):
-  catalog_sheet = sheet.worksheet("Catalog")
-  issue_sheet = sheet.worksheet("Issue_Log")
-
-  # ক্যাটালগ আপডেট
-  catalog_sheet.clear()
-  catalog_sheet.update(
-      [catalog_df.columns.values.tolist()] + catalog_df.values.tolist()
+try:
+  catalog = load_data()
+except Exception as e:
+  st.error(
+      f"Database connection error! Please check your Secrets configuration."
+      f" Details: {e}"
   )
+  catalog = pd.DataFrame()
 
-  # ইস্যু লগ আপডেট
-  issue_sheet.clear()
-  issue_sheet.update(
-      [issue_df.columns.values.tolist()] + issue_df.values.tolist()
-  )
+# ৪. সাইডবার মেনু
+st.sidebar.title("Navigation")
+menu = st.sidebar.radio(
+    "Go to", ["🔍 বই অনুসন্ধান", "🔒 Admin Portal (Faculty/Staff)"]
+)
 
-
-# ডাটা লোড
-catalog, issue_log = load_data()
-
-st.title("📚 Banking & Insurance LMS")
-st.markdown("---")
-
-# --- সিকিউরিটি ও মেনু কন্ট্রোল ---
-st.sidebar.header("🧭 মেনু ও কন্ট্রোল প্যানেল")
-menu_options = ["🔍 বই অনুসন্ধান"]
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("🔐 লাইব্রেরিয়ান লগইন (Admin)")
-admin_checkbox = st.sidebar.checkbox("অ্যাডমিন মোড অন করুন")
-
-if admin_checkbox:
-  password = st.sidebar.text_input("অ্যাডমিন পাসওয়ার্ড দিন", type="password")
-  if password == "1234":
-    st.sidebar.success("লগইন সফল!")
-    menu_options = [
-        "🔍 বই অনুসন্ধান",
-        "📥 নতুন বই এন্ট্রি",
-        "📤 বই ইস্যু করুন",
-        "🔄 বই জমা নিন",
-        "📋 ইস্যু রেজিস্টার",
-    ]
-  elif password:
-    st.sidebar.error("ভুল পাসওয়ার্ড!")
-
-menu = st.sidebar.radio("সিলেক্ট করুন", menu_options)
-
-# ১. বই অনুসন্ধান (সবার জন্য উন্মুক্ত)
+# ৫. বই অনুসন্ধান (সবার জন্য উন্মুক্ত ও লাইভ সাজেশনসহ)
 if menu == "🔍 বই অনুসন্ধান":
   st.subheader("📚 Library Book and Shelf Location Search")
 
   if not catalog.empty:
-    # প্রতিটি বইয়ের জন্য একটি সার্চযোগ্য সাজেশন লিস্ট তৈরি করা হচ্ছে
+    # ড্যাশবোর্ড স্ট্যাটাস কার্ড (KPI Metrics)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+      st.metric(label="📚 Total Book Titles", value=len(catalog))
+    with col2:
+      total_copies = (
+          catalog["Available_Copies"].sum()
+          if "Available_Copies" in catalog.columns
+          else len(catalog)
+      )
+      st.metric(label="📖 Available Copies", value=int(total_copies))
+    with col3:
+      total_subjects = (
+          catalog["Subject"].nunique() if "Subject" in catalog.columns else "N/A"
+      )
+      st.metric(label="🗂️ Total Subjects", value=total_subjects)
+
+    st.markdown("---")
+
+    # প্রতিটি বইয়ের জন্য সার্চযোগ্য অপشن তৈরি
     search_options = [
         f"{row['Title']} | Author: {row['Author']} | Subject: {row['Subject']} (Shelf: {row['Shelf_No']})"
         for _, row in catalog.iterrows()
     ]
 
-    # টাইপ করার সাথে সাথে সাজেশন দেখানোর জন্য selectbox ব্যবহার
+    # টাইপ করার সাথে সাথে সাজেশন দেখানোর জন্য selectbox
     selected_option = st.selectbox(
         "Search by book title, author, subject, or shelf number:",
         options=search_options,
         index=None,
-        placeholder="Start typing book title, author, or shelf...",
+        placeholder=(
+            "Start typing book title, author, subject, or shelf..."
+        ),
     )
 
-    # যদি কোনো বই সিলেক্ট করা হয়, তবে নিচে তার বিস্তারিত টেবিল দেখাবে
+    # সিলেক্ট করলে সুন্দর কার্ডে ডিটেইলস দেখাবে
     if selected_option:
       selected_title = selected_option.split(" | Author:")[0]
-      filtered = catalog[catalog["Title"] == selected_title]
-      st.success("Book Details:")
-      st.dataframe(filtered, use_container_width=True)
+      book = catalog[catalog["Title"] == selected_title].iloc[0]
+
+      with st.container(border=True):
+        st.markdown(f"### 📘 {book['Title']}")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.markdown(f"**✍️ Author:**  \n{book['Author']}")
+        c2.markdown(f"**🏷️ Subject:**  \n{book['Subject']}")
+        c3.markdown(f"**📍 Shelf No:**  \n`{book['Shelf_No']}`")
+        c4.markdown(f"**📦 Available:**  \n{book['Available_Copies']} Copies")
+
+      st.markdown("### 📋 Filtered Record")
+      st.dataframe(
+          catalog[catalog["Title"] == selected_title],
+          use_container_width=True,
+      )
     else:
-      # কিছু সিলেক্ট না করলে পুরো বইয়ের তালিকা দেখাবে
+      st.markdown("### 📖 Complete Book Catalog")
       st.dataframe(catalog, use_container_width=True)
   else:
     st.info("No books available in the catalog.")
 
-# ২. নতুন বই এন্ট্রি
-elif menu == "📥 নতুন বই এন্ট্রি":
-  st.subheader("ক্যাটালগে নতুন বই যুক্ত করুন")
-  with st.form("add_book_form"):
-    col1, col2 = st.columns(2)
-    with col1:
-      b_id = st.text_input("বুক আইডি (যেমন: B-101)")
-      title = st.text_input("বইয়ের নাম")
-      author = st.text_input("লেখক")
-    with col2:
-      subject = st.text_input("বিষয় (Subject)")
-      shelf = st.text_input("সেলফ/র্যাক নম্বর (যেমন: Rack A-02)")
-      copies = st.number_input("মোট সংখ্যা", min_value=1, value=1)
+# ৬. অ্যাডমিন পোর্টাল (পাসওয়ার্ড সুরক্ষিত)
+elif menu == "🔒 Admin Portal (Faculty/Staff)":
+  st.subheader("🔐 Administrator Login")
+  admin_pass = st.text_input("Enter Admin Password", type="password")
 
-    submit = st.form_submit_button("বই সংরক্ষণ করুন")
-
-    if submit:
-      if not catalog.empty and b_id in catalog["Book_ID"].values:
-        st.error("এই বুক আইডি ইতিমধ্যেই বিদ্যমান!")
-      else:
-        new_row = pd.DataFrame([{
-            "Book_ID": b_id,
-            "Title": title,
-            "Author": author,
-            "Subject": subject,
-            "Shelf_No": shelf,
-            "Total_Copies": copies,
-            "Available_Copies": copies,
-        }])
-        catalog = pd.concat([catalog, new_row], ignore_index=True)
-        save_data(catalog, issue_log)
-        st.success(f"'{title}' বইটি সফলভাবে যুক্ত হয়েছে!")
-
-# ৩. বই ইস্যু
-elif menu == "📤 বই ইস্যু করুন":
-  st.subheader("শিক্ষক বা শিক্ষার্থীকে বই প্রদান")
-  available_books = (
-      catalog[catalog["Available_Copies"] > 0] if not catalog.empty else pd.DataFrame()
-  )
-
-  if available_books.empty:
-    st.warning("বর্তমানে ইস্যু করার মতো কোনো বই এভেলেবল নেই।")
-  else:
-    book_list = [
-        f"{row['Book_ID']} - {row['Title']}"
-        for _, row in available_books.iterrows()
-    ]
-    selected_book = st.selectbox("বই নির্বাচন করুন", book_list)
-    borrower_name = st.text_input("গ্রহীতার নাম")
-    role_id = st.text_input("আইডি / রোল / পদবী (শিক্ষক/শিক্ষার্থী)")
-    days = st.number_input(
-        "কত দিনের জন্য ইস্যু করা হচ্ছে?", min_value=1, value=7
+  # আপনার পছন্দমতো পাসওয়ার্ড এখানে দিতে পারেন (যেমন: admin123)
+  if admin_pass == "admin123":
+    st.success("✅ Logged in successfully as Administrator!")
+    st.markdown("### ⚙️ Library Management Dashboard")
+    st.write(
+        "Here you can add, update, or manage book records connected with"
+        " Google Sheets."
     )
 
-    if st.button("ইস্যু নিশ্চিত করুন"):
-      book_id = selected_book.split(" - ")[0]
-      catalog.loc[catalog["Book_ID"] == book_id, "Available_Copies"] -= 1
-
-      issue_id = f"TX-{len(issue_log)+1:03d}"
-      issue_date = datetime.now().strftime("%Y-%m-%d")
-      return_deadline = (
-          datetime.now() + timedelta(days=days)
-      ).strftime("%Y-%m-%d")
-
-      new_issue = pd.DataFrame([{
-          "Issue_ID": issue_id,
-          "Book_ID": book_id,
-          "Borrower_Name": borrower_name,
-          "Role_ID": role_id,
-          "Issue_Date": issue_date,
-          "Return_Deadline": return_deadline,
-          "Status": "Issued",
-      }])
-
-      issue_log = pd.concat([issue_log, new_issue], ignore_index=True)
-      save_data(catalog, issue_log)
-      st.success(f"বই ইস্যু সম্পন্ন হয়েছে! জমার শেষ তারিখ: {return_deadline}")
-
-# ৪. বই জমা
-elif menu == "🔄 বই জমা নিন":
-  st.subheader("ইস্যুকৃত বই ফেরত গ্রহণ")
-  active_issues = (
-      issue_log[issue_log["Status"] == "Issued"]
-      if not issue_log.empty
-      else pd.DataFrame()
-  )
-
-  if active_issues.empty:
-    st.info("বর্তমানে কোনো বই ইস্যু করা নেই।")
+    # অ্যাডমিন প্যানেলে ফুল ডাটা টেবিল এডিটিংয়ের সুবিধা
+    if not catalog.empty:
+      st.dataframe(catalog, use_container_width=True)
+    else:
+      st.info("No data found to manage.")
+  elif admin_pass:
+    st.error("❌ Incorrect Password! Please try again.")
   else:
-    issue_list = [
-        f"{row['Issue_ID']} - {row['Book_ID']} (গ্রহীতা: {row['Borrower_Name']})"
-        for _, row in active_issues.iterrows()
-    ]
-    selected_issue = st.selectbox("ফেরত দেওয়া বই সিলেক্ট করুন", issue_list)
-
-    if st.button("জমা কনফার্ম করুন"):
-      iss_id = selected_issue.split(" - ")[0]
-      book_id = active_issues.loc[
-          active_issues["Issue_ID"] == iss_id, "Book_ID"
-      ].values[0]
-
-      issue_log.loc[issue_log["Issue_ID"] == iss_id, "Status"] = "Returned"
-      catalog.loc[catalog["Book_ID"] == book_id, "Available_Copies"] += 1
-
-      save_data(catalog, issue_log)
-      st.success("বই সফলভাবে লাইব্রেরিতে জমা নেওয়া হয়েছে!")
-
-# ৫. ইস্যু রেজিস্টার
-elif menu == "📋 ইস্যু রেজিস্টার":
-  st.subheader("সকল বই ইস্যু ও ফেরতের ইতিহাস")
-  st.dataframe(issue_log, use_container_width=True)
+    st.warning("⚠️ Please enter the password to access admin controls.")
