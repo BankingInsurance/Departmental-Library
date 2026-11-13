@@ -57,20 +57,25 @@ def load_data():
   creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
   client = gspread.authorize(creds)
 
+# ৩. গুগল শিট কানেকশন ফাংশন
+@st.cache_resource
+def load_data():
+  scope = [
+      "https://spreadsheets.google.com/feeds",
+      "https://www.googleapis.com/auth/drive",
+  ]
+  creds_dict = dict(st.secrets["gcp_service_account"])
+  creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+  client = gspread.authorize(creds)
+
   # আপনার গুগল শিটের নাম এখানে থাকবে
   sheet = client.open("library_data").sheet1
   data = sheet.get_all_records()
-  return pd.DataFrame(data)
+  df = pd.DataFrame(data)
 
-
-try:
-  catalog = load_data()
-except Exception as e:
-  st.error(
-      f"Database connection error! Please check your Secrets configuration."
-      f" Details: {e}"
-  )
-  catalog = pd.DataFrame()
+  # কলামের নামের চারপাশের যেকোনো লুকানো স্পেস পরিষ্কার করার জন্য
+  df.columns = df.columns.str.strip()
+  return df
 
 # ৪. সাইডবার মেনু
 st.sidebar.title("Navigation")
