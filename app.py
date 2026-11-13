@@ -108,9 +108,9 @@ menu = st.sidebar.radio("সিলেক্ট করুন", menu_options)
 
 # ১. বই অনুসন্ধান (সবার জন্য উন্মুক্ত)
 if menu == "🔍 বই অনুসন্ধান":
-  st.subheader("লাইব্রেরির বই ও সেলফ লোকেশন সার্চ")
+  st.subheader("Find Books and Shelf Locations")
   search_term = st.text_input(
-      "বইয়ের নাম, লেখক, বিষয় বা সেলফ নম্বর দিয়ে সার্চ করুন:"
+      "Search books by title, author, subject, or shelf no.:"
   )
 
   if search_term and not catalog.empty:
