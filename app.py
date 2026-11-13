@@ -88,18 +88,22 @@ if menu == "🔍 বই অনুসন্ধান":
     with col1:
       st.metric(label="📚 Total Book Titles", value=len(catalog))
     with col2:
-      total_copies = (
-          catalog["Available_Copies"].sum()
-          if "Available_Copies" in catalog.columns
-          else len(catalog)
-      )
-      st.metric(label="📖 Available Copies", value=int(total_copies))
+      # নিরাপদভাবে সংখ্যা হিসাব করার জন্য pd.to_numeric ব্যবহার করা হলো
+      if "Available_Copies" in catalog.columns:
+        total_copies = int(
+            pd.to_numeric(catalog["Available_Copies"], errors="coerce")
+            .fillna(0)
+            .sum()
+        )
+      else:
+        total_copies = len(catalog)
+      st.metric(label="📖 Available Copies", value=total_copies)
     with col3:
       total_subjects = (
           catalog["Subject"].nunique() if "Subject" in catalog.columns else "N/A"
       )
       st.metric(label="🗂️ Total Subjects", value=total_subjects)
-
+        
     st.markdown("---")
 
     # প্রতিটি বইয়ের জন্য সার্চযোগ্য অপشن তৈরি
