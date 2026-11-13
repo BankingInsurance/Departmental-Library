@@ -108,21 +108,34 @@ menu = st.sidebar.radio("সিলেক্ট করুন", menu_options)
 
 # ১. বই অনুসন্ধান (সবার জন্য উন্মুক্ত)
 if menu == "🔍 বই অনুসন্ধান":
-  st.subheader("Find Books and Shelf Locations")
-  search_term = st.text_input(
-      "Search books by title, author, subject, or shelf no.:"
-  )
+  st.subheader("📚 Library Book and Shelf Location Search")
 
-  if search_term and not catalog.empty:
-    filtered = catalog[
-        catalog["Title"].astype(str).str.contains(search_term, case=False)
-        | catalog["Author"].astype(str).str.contains(search_term, case=False)
-        | catalog["Subject"].astype(str).str.contains(search_term, case=False)
-        | catalog["Shelf_No"].astype(str).str.contains(search_term, case=False)
+  if not catalog.empty:
+    # প্রতিটি বইয়ের জন্য একটি সার্চযোগ্য সাজেশন লিস্ট তৈরি করা হচ্ছে
+    search_options = [
+        f"{row['Title']} | Author: {row['Author']} | Subject: {row['Subject']} (Shelf: {row['Shelf_No']})"
+        for _, row in catalog.iterrows()
     ]
-    st.dataframe(filtered, use_container_width=True)
+
+    # টাইপ করার সাথে সাথে সাজেশন দেখানোর জন্য selectbox ব্যবহার
+    selected_option = st.selectbox(
+        "Search by book title, author, subject, or shelf number:",
+        options=search_options,
+        index=None,
+        placeholder="Start typing book title, author, or shelf...",
+    )
+
+    # যদি কোনো বই সিলেক্ট করা হয়, তবে নিচে তার বিস্তারিত টেবিল দেখাবে
+    if selected_option:
+      selected_title = selected_option.split(" | Author:")[0]
+      filtered = catalog[catalog["Title"] == selected_title]
+      st.success("Book Details:")
+      st.dataframe(filtered, use_container_width=True)
+    else:
+      # কিছু সিলেক্ট না করলে পুরো বইয়ের তালিকা দেখাবে
+      st.dataframe(catalog, use_container_width=True)
   else:
-    st.dataframe(catalog, use_container_width=True)
+    st.info("No books available in the catalog.")
 
 # ২. নতুন বই এন্ট্রি
 elif menu == "📥 নতুন বই এন্ট্রি":
