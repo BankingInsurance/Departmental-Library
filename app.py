@@ -79,7 +79,7 @@ def save_data(catalog_df, issue_df):
 # ডাটা লোড
 catalog, issue_log = load_data()
 
-st.title("📚 ডিপার্টমেন্টাল লাইব্রেরি ম্যানেজমেন্ট সিস্টেম")
+st.title("📚 Banking & Insurance LMS")
 st.markdown("---")
 
 # --- সিকিউরিটি ও মেনু কন্ট্রোল ---
