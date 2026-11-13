@@ -72,10 +72,7 @@ def load_data():
   sheet = client.open("library_data").sheet1
   data = sheet.get_all_records()
   df = pd.DataFrame(data)
-
-  # কলামের নামের চারপাশের যেকোনো লুকানো স্পেস পরিষ্কার করার জন্য
-  df.columns = df.columns.str.strip()
-  return df
+    
 
 # ৪. সাইডবার মেনু
 st.sidebar.title("Navigation")
