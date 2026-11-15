@@ -1,6 +1,7 @@
 import gspread
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ১. পেজ কনফিগারেশন (সবার উপরে থাকতে হবে)
@@ -8,7 +9,32 @@ st.set_page_config(
     page_title="Departmental Library | CU", page_icon="🏛️", layout="wide"
 )
 
-# ২. কাস্টম CSS ডিজাইন ও হেডার ব্যানার
+# ২. PWA এবং কাস্টম CSS ডিজাইন ও হেডার ব্যানার
+pwa_code = """
+<script>
+const manifest = {
+    "name": "Departmental Library | CU",
+    "short_name": "CU Library",
+    "start_url": "./",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#1e3c72",
+    "icons": [
+        {"src": "https://img.icons8.com/color/96/library.png", "sizes": "96x96", "type": "image/png"},
+        {"src": "https://img.icons8.com/color/512/library.png", "sizes": "512x512", "type": "image/png"}
+    ]
+};
+const stringifiedManifest = JSON.stringify(manifest);
+const blob = new Blob([stringifiedManifest], {type: 'application/json'});
+const manifestURL = URL.createObjectURL(blob);
+const link = document.createElement('link');
+link.rel = 'manifest';
+link.href = manifestURL;
+document.head.appendChild(link);
+</script>
+"""
+components.html(pwa_code, height=0, width=0)
+
 st.markdown(
     """
     <style>
@@ -46,7 +72,7 @@ st.markdown(
 )
 
 
-# ৩. গুগল শিট কানেকশন ফাংশন (কলাম স্পেস ক্লিনিং সহ)
+# ৩. গুগল শিট কানেকশন ফাংশন
 @st.cache_resource
 def load_data():
   scope = [
@@ -57,12 +83,9 @@ def load_data():
   creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
   client = gspread.authorize(creds)
 
-  # আপনার গুগল শিটের নাম
   sheet = client.open("library_data").sheet1
   data = sheet.get_all_records()
   df = pd.DataFrame(data)
-
-  # কলাম নামের চারপাশের লুকানো স্পেস দূর করা
   df.columns = df.columns.str.strip()
   return df
 
@@ -76,18 +99,33 @@ except Exception as e:
   )
   catalog = pd.DataFrame()
 
-# ৪. সাইডবার মেনু
+# Session State for Local Data Storage (Issue requests, Book requests, Reviews)
+if "issue_requests" not in st.session_state:
+  st.session_state.issue_requests = []
+if "book_requisitions" not in st.session_state:
+  st.session_state.book_requisitions = []
+if "book_reviews" not in st.session_state:
+  st.session_state.book_reviews = []
+
+# ৪. সাইডবার নেভিগেশন (নতুন অপশনগুলোসহ)
 st.sidebar.title("Navigation")
 menu = st.sidebar.radio(
-    "Go to", ["🔍 বই অনুসন্ধান", "🔒 Admin Portal (Faculty/Staff)"]
+    "Go to",
+    [
+        "🔍 বই অনুসন্ধান",
+        "📖 বই ইস্যু রিকোয়েস্ট (Feature 1)",
+        "📝 নতুন বইয়ের রিকোয়েস্ট (Feature 3)",
+        "📌 নোটিশ বোর্ড ও সময়সূচী (Feature 4)",
+        "⭐ বই রিভিউ ও রেটিং (Feature 5)",
+        "🔒 Admin Portal",
+    ],
 )
 
-# ৫. বই অনুসন্ধান (সবার জন্য উন্মুক্ত ও লাইভ সাজেশনসহ)
+# ৫. বই অনুসন্ধান (Live Search & Autocomplete)
 if menu == "🔍 বই অনুসন্ধান":
   st.subheader("📚 Library Book and Shelf Location Search")
 
   if not catalog.empty:
-    # ড্যাশবোর্ড স্ট্যাটাস কার্ড (KPI Metrics) - নিরাপদ হিসাবসহ
     col1, col2, col3 = st.columns(3)
     with col1:
       st.metric(label="📚 Total Book Titles", value=len(catalog))
@@ -109,13 +147,11 @@ if menu == "🔍 বই অনুসন্ধান":
 
     st.markdown("---")
 
-    # প্রতিটি বইয়ের জন্য সার্চযোগ্য অপশন তৈরি
     search_options = [
         f"{row['Title']} | Author: {row['Author']} | Subject: {row['Subject']} (Shelf: {row['Shelf_No']})"
         for _, row in catalog.iterrows()
     ]
 
-    # টাইপ করার সাথে সাথে সাজেশন দেখানোর জন্য selectbox
     selected_option = st.selectbox(
         "Search by book title, author, subject, or shelf number:",
         options=search_options,
@@ -125,7 +161,6 @@ if menu == "🔍 বই অনুসন্ধান":
         ),
     )
 
-    # সিলেক্ট করলে সুন্দর কার্ডে ডিটেইলস দেখাবে
     if selected_option:
       selected_title = selected_option.split(" | Author:")[0]
       book = catalog[catalog["Title"] == selected_title].iloc[0]
@@ -149,24 +184,193 @@ if menu == "🔍 বই অনুসন্ধান":
   else:
     st.info("No books available in the catalog.")
 
-# ৬. অ্যাডমিন পোর্টাল (পাসওয়ার্ড সুরক্ষিত)
-elif menu == "🔒 Admin Portal (Faculty/Staff)":
+# ৬. বই ইস্যু রিকোয়েস্ট (Feature 1)
+elif menu == "📖 বই ইস্যু রিকোয়েস্ট (Feature 1)":
+  st.subheader("📖 Book Issue / Borrow Request System")
+  st.write(
+      "Fill out the form below to request a book borrow ticket from the"
+      " library."
+  )
+
+  with st.form("issue_form"):
+    student_name = st.text_input("Full Name")
+    student_id = st.text_input("Student ID / Roll")
+    book_title = (
+        st.selectbox("Select Book Title", catalog["Title"].tolist())
+        if not catalog.empty
+        else st.text_input("Book Title")
+    )
+    issue_days = st.slider(
+        "Requested Duration (Days)", min_value=1, max_value=14, value=7
+    )
+    submit_issue = st.form_submit_button("Submit Borrow Request")
+
+    if submit_issue:
+      if student_name and student_id:
+        st.session_state.issue_requests.append({
+            "Name": student_name,
+            "ID": student_id,
+            "Book": book_title,
+            "Duration": f"{issue_days} Days",
+            "Status": "Pending Approval",
+        })
+        st.success(
+            "✅ Your borrow request has been successfully submitted to the"
+            " library admin!"
+        )
+      else:
+        st.warning("⚠️ Please fill in all required fields.")
+
+  if st.session_state.issue_requests:
+    st.markdown("### 📋 Active Borrow Requests (Session)")
+    st.dataframe(
+        pd.DataFrame(st.session_state.issue_requests), use_container_width=True
+    )
+
+# ৭. নতুন বইয়ের রিকোয়েস্ট (Feature 3)
+elif menu == "📝 নতুন বইয়ের রিকোয়েস্ট (Feature 3)":
+  st.subheader("📝 New Book Purchase Requisition Form")
+  st.write(
+      "Can't find a book in the library? Request the department to purchase"
+      " it."
+  )
+
+  with st.form("req_form"):
+    req_name = st.text_input("Your Name (Student/Faculty)")
+    req_book = st.text_input("Suggested Book Title")
+    req_author = st.text_input("Author Name")
+    req_reason = st.text_area(
+        "Why is this book necessary for the course/department?"
+    )
+    submit_req = st.form_submit_button("Send Book Request")
+
+    if submit_req:
+      if req_name and req_book:
+        st.session_state.book_requisitions.append({
+            "Requester": req_name,
+            "Book": req_book,
+            "Author": req_author,
+            "Reason": req_reason,
+            "Status": "Under Review",
+        })
+        st.success(
+            "✅ Book purchase request submitted successfully! The library"
+            " committee will review it."
+        )
+      else:
+        st.warning("⚠️ Please enter your name and book title.")
+
+  if st.session_state.book_requisitions:
+    st.markdown("### 📋 Submitted Requisitions")
+    st.dataframe(
+        pd.DataFrame(st.session_state.book_requisitions),
+        use_container_width=True,
+    )
+
+# ৮. নোটিশ বোর্ড ও সময়সূচী (Feature 4)
+elif menu == "📌 নোটিশ বোর্ড ও সময়সূচী (Feature 4)":
+  st.subheader("📌 Digital Notice Board & Library Hours")
+
+  col1, col2 = st.columns(2)
+
+  with col1:
+    with st.container(border=True):
+      st.markdown("### ⏰ Library Schedule & Hours")
+      st.markdown(
+          """
+            - **Sunday - Thursday:** 9:00 AM – 4:00 PM  
+            - **Friday - Saturday:** Closed (Weekend)  
+            - **Break Time:** 1:00 PM – 2:00 PM  
+            - **Location:** Room No. 304, Department of Banking & Insurance, CU  
+            """
+      )
+
+  with col2:
+    with st.container(border=True):
+      st.markdown("### 📢 Important Announcements")
+      st.markdown(
+          """
+            - **New Arrivals:** 25+ new books on Financial Econometrics and Risk Management have been added to Shelf #4.  
+            - **Return Policy:** Books must be returned within 7 days of issue to avoid late fines.  
+            - **Quiet Zone:** Maintain strict silence inside the reading room.  
+            """
+      )
+
+# ৯. বই রিভিউ ও রেটিং (Feature 5)
+elif menu == "⭐ বই রিভিউ ও রেটিং (Feature 5)":
+  st.subheader("⭐ Book Ratings & Student Reviews")
+
+  with st.form("review_form"):
+    rev_book = (
+        st.selectbox("Select Book to Review", catalog["Title"].tolist())
+        if not catalog.empty
+        else st.text_input("Book Title")
+    )
+    rev_user = st.text_input("Your Name")
+    rating = st.slider("Rating (Stars)", 1, 5, 5)
+    review_text = st.text_area("Write your feedback or review")
+    submit_review = st.form_submit_button("Post Review")
+
+    if submit_review:
+      if rev_user and review_text:
+        st.session_state.book_reviews.append({
+            "Book": rev_book,
+            "Reviewer": rev_user,
+            "Rating": f"{'⭐' * rating} ({rating}/5)",
+            "Review": review_text,
+        })
+        st.success("✅ Thank you for your valuable review!")
+      else:
+        st.warning("⚠️ Please enter your name and review text.")
+
+  if st.session_state.book_reviews:
+    st.markdown("### 📚 Recent Book Reviews")
+    for r in st.session_state.book_reviews:
+      with st.container(border=True):
+        st.markdown(f"**📘 Book:** {r['Book']} | **Rating:** {r['Rating']}")
+        st.markdown(f"*{r['Review']}* — **{r['Reviewer']}**")
+
+# ১০. অ্যাডমিন পোর্টাল (পাসওয়ার্ড সুরক্ষিত)
+elif menu == "🔒 Admin Portal":
   st.subheader("🔐 Administrator Login")
   admin_pass = st.text_input("Enter Admin Password", type="password")
 
   if admin_pass == "admin123":
     st.success("✅ Logged in successfully as Administrator!")
     st.markdown("### ⚙️ Library Management Dashboard")
-    st.write(
-        "Here you can add, update, or manage book records connected with"
-        " Google Sheets."
+
+    tab1, tab2, tab3 = st.tabs(
+        ["📚 Catalog Management", "📖 Borrow Requests", "📝 Book Requisitions"]
     )
 
-    if not catalog.empty:
-      st.dataframe(catalog, use_container_width=True)
-    else:
-      st.info("No data found to manage.")
+    with tab1:
+      st.markdown("### Complete Book Catalog from Google Sheets")
+      if not catalog.empty:
+        st.dataframe(catalog, use_container_width=True)
+      else:
+        st.info("No data found.")
+
+    with tab2:
+      st.markdown("### Student Borrow Requests")
+      if st.session_state.issue_requests:
+        st.dataframe(
+            pd.DataFrame(st.session_state.issue_requests),
+            use_container_width=True,
+        )
+      else:
+        st.info("No borrow requests pending.")
+
+    with tab3:
+      st.markdown("### Book Purchase Requisitions")
+      if st.session_state.book_requisitions:
+        st.dataframe(
+            pd.DataFrame(st.session_state.book_requisitions),
+            use_container_width=True,
+        )
+      else:
+        st.info("No purchase requisitions found.")
+
   elif admin_pass:
-    st.error("❌ Incorrect Password! Please try again.")
+    st.error("❌ Incorrect Password!")
   else:
     st.warning("⚠️ Please enter the password to access admin controls.")
