@@ -185,7 +185,7 @@ if menu == "🔍 বই অনুসন্ধান":
     st.info("No books available in the catalog.")
 
 # ৬. বই ইস্যু রিকোয়েস্ট (Feature 1)
-elif menu == "📖 বই ইস্যু রিকোয়েস্ট (Feature 1)":
+elif menu == "📖 বই ইস্যু রিকোয়েস্ট":
   st.subheader("📖 Book Issue / Borrow Request System")
   st.write(
       "Fill out the form below to request a book borrow ticket from the"
@@ -228,7 +228,7 @@ elif menu == "📖 বই ইস্যু রিকোয়েস্ট (Featur
     )
 
 # ৭. নতুন বইয়ের রিকোয়েস্ট (Feature 3)
-elif menu == "📝 নতুন বইয়ের রিকোয়েস্ট (Feature 3)":
+elif menu == "📝 নতুন বইয়ের রিকোয়েস্ট":
   st.subheader("📝 New Book Purchase Requisition Form")
   st.write(
       "Can't find a book in the library? Request the department to purchase"
@@ -268,7 +268,7 @@ elif menu == "📝 নতুন বইয়ের রিকোয়েস্�
     )
 
 # ৮. নোটিশ বোর্ড ও সময়সূচী (Feature 4)
-elif menu == "📌 নোটিশ বোর্ড ও সময়সূচী (Feature 4)":
+elif menu == "📌 নোটিশ বোর্ড ও সময়সূচী":
   st.subheader("📌 Digital Notice Board & Library Hours")
 
   col1, col2 = st.columns(2)
@@ -297,7 +297,7 @@ elif menu == "📌 নোটিশ বোর্ড ও সময়সূচী 
       )
 
 # ৯. বই রিভিউ ও রেটিং (Feature 5)
-elif menu == "⭐ বই রিভিউ ও রেটিং (Feature 5)":
+elif menu == "⭐ বই রিভিউ ও রেটিং":
   st.subheader("⭐ Book Ratings & Student Reviews")
 
   with st.form("review_form"):
