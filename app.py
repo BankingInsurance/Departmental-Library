@@ -6,9 +6,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # ১. পেজ কনফিগারেশন (সবার উপরে থাকতে হবে)
 st.set_page_config(
-    page_title="Departmental Library | CU", page_icon="🏛️", layout="wide"
+    page_title="Banking & Insurance LMS", page_icon="🏛️", layout="wide"
 )
-
 # ২. PWA এবং কাস্টম CSS ডিজাইন ও হেডার ব্যানার
 pwa_code = """
 <script>
