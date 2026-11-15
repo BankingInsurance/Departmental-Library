@@ -9,30 +9,6 @@ st.set_page_config(
     page_title="Banking & Insurance LMS", page_icon="🏛️", layout="wide"
 )
 # ২. PWA এবং কাস্টম CSS ডিজাইন ও হেডার ব্যানার
-pwa_code = """
-<script>
-const manifest = {
-    "name": "Departmental Library | CU",
-    "short_name": "CU Library",
-    "start_url": "./",
-    "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#1e3c72",
-    "icons": [
-        {"src": "https://img.icons8.com/color/96/library.png", "sizes": "96x96", "type": "image/png"},
-        {"src": "https://img.icons8.com/color/512/library.png", "sizes": "512x512", "type": "image/png"}
-    ]
-};
-const stringifiedManifest = JSON.stringify(manifest);
-const blob = new Blob([stringifiedManifest], {type: 'application/json'});
-const manifestURL = URL.createObjectURL(blob);
-const link = document.createElement('link');
-link.rel = 'manifest';
-link.href = manifestURL;
-document.head.appendChild(link);
-</script>
-"""
-components.html(pwa_code, height=0, width=0)
 
 st.markdown(
     """
