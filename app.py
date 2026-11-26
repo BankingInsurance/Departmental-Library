@@ -79,7 +79,7 @@ def load_data():
 def fetch_book_cover(title, author=""):
   fallback_img = "https://img.icons8.com/color/240/open-book--v2.png"
   # আপনার GitHub রিপোজিটরিতে আপলোড করা জার্নালের মলাটের Raw লিংক নিচে বসান
-  cu_journal_cover = "আপনার_কপি_করা_RAW_লিংকটি_এখানে_বসান"
+  cu_journal_cover = "https://raw.githubusercontent.com/BankingInsurance/Departmental-Library/refs/heads/main/cu_journal_cover.jpg.jpg"
 
   try:
     clean_title = str(title).strip() if pd.notna(title) else ""
@@ -87,7 +87,7 @@ def fetch_book_cover(title, author=""):
 
     # জার্নালের নামের সাথে মিললে সব সময় নির্দিষ্ট মলাট দেখাবে
     if (
-        cu_journal_cover.startswith(("https://raw.githubusercontent.com/BankingInsurance/Departmental-Library/refs/heads/main/cu_journal_cover.jpg.jpg", "https://"))
+        cu_journal_cover.startswith(("https://", "https://"))
         and "chittagong university journal of business administration"
         in clean_title.lower()
     ):
