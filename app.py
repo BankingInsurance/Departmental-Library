@@ -163,7 +163,6 @@ if menu == "🔍 Book Search":
     else:
       st.markdown("### 📖 Complete Book Catalog")
       st.dataframe(catalog, use_container_width=True)
-      )
   else:
     st.info("No books available in the catalog.")
 
