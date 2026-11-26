@@ -36,13 +36,6 @@ st.markdown(
         font-size: 15px;
         color: #e0e8f5;
     }
-div.stButton > button:hover,
-div.stFormSubmitButton > button:hover {
-  background-color: #1e3c72 !important;
-  color: #ffffff !important;
-  border-color: #1e3c72 !important;
-  transition: all 0.2s ease-in-out;
-}
     </style>
     
     <div class="header-box">
@@ -52,7 +45,6 @@ div.stFormSubmitButton > button:hover {
 """,
     unsafe_allow_html=True,
 )
-
 
 # ৩. গুগল শিট কানেকশন ফাংশন
 @st.cache_resource
