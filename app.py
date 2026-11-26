@@ -144,8 +144,9 @@ if menu == "🔍 Book Search":
     )
 
     if selected_option:
-      selected_title = selected_option.split(" | Author:")[0]
-      book = catalog[catalog["Title"] == selected_title].iloc[0]
+      selected_title = selected_option.rsplit(" — ", 1)[0]
+      matched_books = catalog[catalog["Title"] == selected_title]
+      book = matched_books.iloc[0]
 
       with st.container(border=True):
         st.markdown(f"### 📘 {book['Title']}")
