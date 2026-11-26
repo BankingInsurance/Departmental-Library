@@ -36,6 +36,14 @@ st.markdown(
         font-size: 15px;
         color: #e0e8f5;
     }
+    /* সব বাটন এবং ফর্ম সাবমিট বাটনের ওপর কারসার নিলে নীল রঙ হবে */
+div.stButton > button:hover,
+div.stFormSubmitButton > button:hover {
+  background-color: #1e3c72 !important;
+  color: #ffffff !important;
+  border-color: #1e3c72 !important;
+  transition: all 0.2s ease-in-out;
+}
     </style>
     
     <div class="header-box">
