@@ -131,8 +131,7 @@ if menu == "🔍 Book Search":
     st.markdown("---")
 
     search_options = [
-        f"{row['Title']} | Author: {row['Author']} | Subject: {row['Subject']} (Shelf: {row['Shelf_No']})"
-        for _, row in catalog.iterrows()
+        f"{row['Title']} | Author: {row['Author']}" for _, row in catalog.iterrows()
     ]
 
     selected_option = st.selectbox(
