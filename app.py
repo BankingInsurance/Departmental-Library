@@ -130,23 +130,25 @@ if menu == "🔍 Book Search":
 
     st.markdown("---")
 
+    # প্রতিটি রো-এর ইনডেক্সসহ সাজেশন লিস্ট (শুধুমাত্র Title ও Author দেখানো হবে)
     search_options = [
-        f"{row['Title']} | Author: {row['Author']}" for _, row in catalog.iterrows()
+        f"{row['Title']} — {row['Author'] if str(row['Author']).strip() else 'Unknown Author'}"
+        for _, row in catalog.iterrows()
     ]
 
+    # টাইপ করার সাথে সাথে সাজেশন দেখানোর জন্য selectbox
     selected_option = st.selectbox(
-        "Search by book title, author, subject, or shelf number:",
+        "Search by book title or author:",
         options=search_options,
         index=None,
-        placeholder=(
-            "Start typing book title, author..."
-        ),
+        placeholder="Start typing book title or author...",
     )
 
+    # সাজেশন থেকে কোনো বই সিলেক্ট করলে নিচে সব তথ্য দেখাবে
     if selected_option:
-      selected_title = selected_option.rsplit(" — ", 1)[0]
-      matched_books = catalog[catalog["Title"] == selected_title]
-      book = matched_books.iloc[0]
+      selected_idx = search_options.index(selected_option)
+      matched_books = catalog.iloc[[selected_idx]]
+      book = catalog.iloc[selected_idx]
 
       with st.container(border=True):
         st.markdown(f"### 📘 {book['Title']}")
@@ -157,9 +159,10 @@ if menu == "🔍 Book Search":
         c4.markdown(f"**📦 Available:**  \n{book['Available_Copies']} Copies")
 
       st.markdown("### 📋 Filtered Record")
-      st.dataframe(
-          catalog[catalog["Title"] == selected_title],
-          use_container_width=True,
+      st.dataframe(matched_books, use_container_width=True)
+    else:
+      st.markdown("### 📖 Complete Book Catalog")
+      st.dataframe(catalog, use_container_width=True)
       )
     else:
       st.markdown("### 📖 Complete Book Catalog")
