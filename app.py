@@ -140,7 +140,7 @@ if menu == "🔍 Book Search":
         options=search_options,
         index=None,
         placeholder=(
-            "Start typing book title, author, subject, or shelf..."
+            "Start typing book title, author..."
         ),
     )
 
