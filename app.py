@@ -78,9 +78,19 @@ def load_data():
 @st.cache_data(show_spinner=False)
 def fetch_book_cover(title, author=""):
   fallback_img = "https://img.icons8.com/color/240/open-book--v2.png"
+  cu_journal_cover = "https://raw.githubusercontent.com/BankingInsurance/Departmental-Library/refs/heads/main/cu_journal_cover.jpg.jpg"
+
   try:
     clean_title = str(title).strip() if pd.notna(title) else ""
     clean_author = str(author).strip() if pd.notna(author) else ""
+
+    # জার্নালের নামের সাথে মিললে সব সময় ওই মলাট দেখাবে
+    if (
+        "chittagong university journal of business administration"
+        in clean_title.lower()
+    ):
+      return cu_journal_cover
+
     query = f"{clean_title} {clean_author}".strip()
     if not query:
       return fallback_img
