@@ -87,11 +87,11 @@ st.sidebar.title("Navigation")
 menu = st.sidebar.radio(
     "Go to",
     [
-        "🔍 বই অনুসন্ধান",
-        "📖 বই ইস্যু রিকোয়েস্ট",
-        "📝 নতুন বইয়ের রিকোয়েস্ট",
-        "📌 নোটিশ বোর্ড ও সময়সূচী",
-        "⭐ বই রিভিউ ও রেটিং",
+        "🔍 Book Search",
+        "📖 Book Issue Request",
+        "📝 New Book Request",
+        "📌 Notice Board & Hours",
+        "⭐ Book Reviews & Ratings",
         "🔒 Admin Portal",
     ],
 )
