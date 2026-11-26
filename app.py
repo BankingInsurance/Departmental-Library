@@ -87,7 +87,7 @@ def fetch_book_cover(title, author=""):
 
     # জার্নালের নামের সাথে মিললে সব সময় নির্দিষ্ট মলাট দেখাবে
     if (
-        cu_journal_cover.startswith(("http://", "https://"))
+        cu_journal_cover.startswith(("https://raw.githubusercontent.com/BankingInsurance/Departmental-Library/refs/heads/main/cu_journal_cover.jpg.jpg", "https://"))
         and "chittagong university journal of business administration"
         in clean_title.lower()
     ):
