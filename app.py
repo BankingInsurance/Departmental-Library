@@ -1,21 +1,21 @@
 import gspread
-import pandas as pd
-import streamlit as st
-import streamlit.components.v1 as components
 from oauth2client.service_account import ServiceAccountCredentials
+import pandas as pd
+import requests
+import streamlit as st
 
 # ১. পেজ কনফিগারেশন (সবার উপরে থাকতে হবে)
 st.set_page_config(
     page_title="Banking & Insurance LMS", page_icon="🏛️", layout="wide"
 )
-# ২. PWA এবং কাস্টম CSS ডিজাইন ও হেডার ব্যানার
 
+# ২. কাস্টম CSS ডিজাইন, বাটন হোভার ও হেডার ব্যানার
 st.markdown(
     """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
+
     .header-box {
         background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         padding: 25px;
@@ -37,7 +37,7 @@ st.markdown(
         color: #e0e8f5;
     }
 
-    /* বাটন হোভার নীল রঙ */
+    /* সব বাটন ও ফর্ম সাবমিট বাটনের ওপর কারসার নিলে নীল রঙ */
     div.stButton > button:hover,
     div.stFormSubmitButton > button:hover {
         background-color: #1e3c72 !important;
@@ -46,7 +46,7 @@ st.markdown(
         transition: all 0.2s ease-in-out;
     }
     </style>
-    
+
     <div class="header-box">
         <h1>🏛️ Departmental Library Management System</h1>
         <p>Department of Banking & Insurance • University of Chittagong</p>
@@ -55,7 +55,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ৩. গুগল শিট কানেকশন ফাংশন
+
+# ৩. গুগল শিট কানেকশন ফাংশন (কলাম স্পেস ক্লিনিং সহ)
 @st.cache_resource
 def load_data():
   scope = [
@@ -73,6 +74,30 @@ def load_data():
   return df
 
 
+# ৪. বইয়ের নাম ও লেখক থেকে নিজে থেকে নেট থেকে মলাট খোঁজার ফাংশন
+@st.cache_data(show_spinner=False)
+def fetch_book_cover(title, author=""):
+  fallback_img = "https://img.icons8.com/color/240/open-book--v2.png"
+  try:
+    clean_title = str(title).strip() if pd.notna(title) else ""
+    clean_author = str(author).strip() if pd.notna(author) else ""
+    query = f"{clean_title} {clean_author}".strip()
+    if not query:
+      return fallback_img
+
+    url = f"https://openlibrary.org/search.json?q={requests.utils.quote(query)}&limit=1"
+    resp = requests.get(url, timeout=5)
+    if resp.status_code == 200:
+      data = resp.json()
+      docs = data.get("docs", [])
+      if docs and docs[0].get("cover_i"):
+        cover_id = docs[0]["cover_i"]
+        return f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
+  except Exception:
+    pass
+  return fallback_img
+
+
 try:
   catalog = load_data()
 except Exception as e:
@@ -82,7 +107,7 @@ except Exception as e:
   )
   catalog = pd.DataFrame()
 
-# Session State for Local Data Storage (Issue requests, Book requests, Reviews)
+# Session State for Request & Review storage
 if "issue_requests" not in st.session_state:
   st.session_state.issue_requests = []
 if "book_requisitions" not in st.session_state:
@@ -90,7 +115,7 @@ if "book_requisitions" not in st.session_state:
 if "book_reviews" not in st.session_state:
   st.session_state.book_reviews = []
 
-# ৪. সাইডবার নেভিগেশন (নতুন অপশনগুলোসহ)
+# ৫. সাইডবার নেভিগেশন (ইংরেজিতে)
 st.sidebar.title("Navigation")
 menu = st.sidebar.radio(
     "Go to",
@@ -104,7 +129,7 @@ menu = st.sidebar.radio(
     ],
 )
 
-# ৫. বই অনুসন্ধান (Live Search & Autocomplete)
+# ৬. বই অনুসন্ধান (Live Autocomplete + Book Cover)
 if menu == "🔍 Book Search":
   st.subheader("📚 Library Book and Shelf Location Search")
 
@@ -130,13 +155,12 @@ if menu == "🔍 Book Search":
 
     st.markdown("---")
 
-    # প্রতিটি রো-এর ইনডেক্সসহ সাজেশন লিস্ট (শুধুমাত্র Title ও Author দেখানো হবে)
+    # সাজেশনে শুধুমাত্র বইয়ের নাম ও লেখকের নাম দেখানো হচ্ছে
     search_options = [
-        f"{row['Title']} — {row['Author'] if str(row['Author']).strip() else 'Unknown Author'}"
+        f"{row.get('Title', '')} — {row.get('Author') if str(row.get('Author', '')).strip() else 'Unknown Author'}"
         for _, row in catalog.iterrows()
     ]
 
-    # টাইপ করার সাথে সাথে সাজেশন দেখানোর জন্য selectbox
     selected_option = st.selectbox(
         "Search by book title or author:",
         options=search_options,
@@ -144,19 +168,37 @@ if menu == "🔍 Book Search":
         placeholder="Start typing book title or author...",
     )
 
-    # সাজেশন থেকে কোনো বই সিলেক্ট করলে নিচে সব তথ্য দেখাবে
     if selected_option:
       selected_idx = search_options.index(selected_option)
       matched_books = catalog.iloc[[selected_idx]]
       book = catalog.iloc[selected_idx]
 
+      # সিস্টেম নিজে থেকে নেট থেকে মলাট খুঁজে আনবে
+      cover_url = fetch_book_cover(
+          book.get("Title", ""), book.get("Author", "")
+      )
+
       with st.container(border=True):
-        st.markdown(f"### 📘 {book['Title']}")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.markdown(f"**✍️ Author:**  \n{book['Author']}")
-        c2.markdown(f"**🏷️ Subject:**  \n{book['Subject']}")
-        c3.markdown(f"**📍 Shelf No:**  \n`{book['Shelf_No']}`")
-        c4.markdown(f"**📦 Available:**  \n{book['Available_Copies']} Copies")
+        img_col, info_col = st.columns([1, 3])
+
+        with img_col:
+          st.image(
+              cover_url,
+              caption=str(book.get("Title", "Book Cover")),
+              use_container_width=True,
+          )
+
+        with info_col:
+          st.markdown(f"### 📘 {book.get('Title', 'N/A')}")
+          c1, c2 = st.columns(2)
+          c1.markdown(f"**✍️ Author:**  \n{book.get('Author', 'N/A')}")
+          c2.markdown(f"**🏷️ Subject:**  \n{book.get('Subject', 'N/A')}")
+
+          c3, c4 = st.columns(2)
+          c3.markdown(f"**📍 Shelf No:**  \n`{book.get('Shelf_No', 'N/A')}`")
+          c4.markdown(
+              f"**📦 Available:**  \n{book.get('Available_Copies', 0)} Copies"
+          )
 
       st.markdown("### 📋 Filtered Record")
       st.dataframe(matched_books, use_container_width=True)
@@ -166,7 +208,7 @@ if menu == "🔍 Book Search":
   else:
     st.info("No books available in the catalog.")
 
-# ৬. বই ইস্যু রিকোয়েস্ট (Feature 1)
+# ৭. বই ইস্যু রিকোয়েস্ট
 elif menu == "📖 Book Issue Request":
   st.subheader("📖 Book Issue / Borrow Request System")
   st.write(
@@ -178,8 +220,8 @@ elif menu == "📖 Book Issue Request":
     student_name = st.text_input("Full Name")
     student_id = st.text_input("Student ID / Roll")
     book_title = (
-        st.selectbox("Select Book Title", catalog["Title"].tolist())
-        if not catalog.empty
+        st.selectbox("Select Book Title", catalog["Title"].dropna().tolist())
+        if not catalog.empty and "Title" in catalog.columns
         else st.text_input("Book Title")
     )
     issue_days = st.slider(
@@ -209,7 +251,7 @@ elif menu == "📖 Book Issue Request":
         pd.DataFrame(st.session_state.issue_requests), use_container_width=True
     )
 
-# ৭. নতুন বইয়ের রিকোয়েস্ট (Feature 3)
+# ৮. নতুন বইয়ের রিকোয়েস্ট
 elif menu == "📝 New Book Request":
   st.subheader("📝 New Book Purchase Requisition Form")
   st.write(
@@ -249,7 +291,7 @@ elif menu == "📝 New Book Request":
         use_container_width=True,
     )
 
-# ৮. নোটিশ বোর্ড ও সময়সূচী (Feature 4)
+# ৯. নোটিশ বোর্ড ও সময়সূচী
 elif menu == "📌 Notice Board & Hours":
   st.subheader("📌 Digital Notice Board & Library Hours")
 
@@ -258,34 +300,30 @@ elif menu == "📌 Notice Board & Hours":
   with col1:
     with st.container(border=True):
       st.markdown("### ⏰ Library Schedule & Hours")
-      st.markdown(
-          """
-            - **Sunday - Thursday:** 9:00 AM – 4:00 PM  
-            - **Friday - Saturday:** Closed (Weekend)  
-            - **Break Time:** 1:00 PM – 2:00 PM  
-            - **Location:** Room No. 304, Department of Banking & Insurance, CU  
-            """
-      )
+      st.markdown("""
+            - **Sunday - Thursday:** 9:00 AM – 4:00 PM
+            - **Friday - Saturday:** Closed (Weekend)
+            - **Break Time:** 1:00 PM – 2:00 PM
+            - **Location:** Room No. 304, Department of Banking & Insurance, CU
+            """)
 
   with col2:
     with st.container(border=True):
       st.markdown("### 📢 Important Announcements")
-      st.markdown(
-          """
-            - **New Arrivals:** 25+ new books on Financial Econometrics and Risk Management have been added to Shelf #4.  
-            - **Return Policy:** Books must be returned within 7 days of issue to avoid late fines.  
-            - **Quiet Zone:** Maintain strict silence inside the reading room.  
-            """
-      )
+      st.markdown("""
+            - **New Arrivals:** 25+ new books on Financial Econometrics and Risk Management have been added to Shelf #4.
+            - **Return Policy:** Books must be returned within 7 days of issue to avoid late fines.
+            - **Quiet Zone:** Maintain strict silence inside the reading room.
+            """)
 
-# ৯. বই রিভিউ ও রেটিং (Feature 5)
+# ১০. বই রিভিউ ও রেটিং
 elif menu == "⭐ Book Reviews & Ratings":
   st.subheader("⭐ Book Ratings & Student Reviews")
 
   with st.form("review_form"):
     rev_book = (
-        st.selectbox("Select Book to Review", catalog["Title"].tolist())
-        if not catalog.empty
+        st.selectbox("Select Book to Review", catalog["Title"].dropna().tolist())
+        if not catalog.empty and "Title" in catalog.columns
         else st.text_input("Book Title")
     )
     rev_user = st.text_input("Your Name")
@@ -312,7 +350,7 @@ elif menu == "⭐ Book Reviews & Ratings":
         st.markdown(f"**📘 Book:** {r['Book']} | **Rating:** {r['Rating']}")
         st.markdown(f"*{r['Review']}* — **{r['Reviewer']}**")
 
-# ১০. অ্যাডমিন পোর্টাল (পাসওয়ার্ড সুরক্ষিত)
+# ১১. অ্যাডমিন পোর্টাল
 elif menu == "🔒 Admin Portal":
   st.subheader("🔐 Administrator Login")
   admin_pass = st.text_input("Enter Admin Password", type="password")
